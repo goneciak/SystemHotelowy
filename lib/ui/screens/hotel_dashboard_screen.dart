@@ -225,13 +225,19 @@ class _HotelDashboardScreenState extends State<HotelDashboardScreen> {
   }
 
   Future<void> _showReservationDialog({Pokoj? initialRoom}) async {
+    final activeGuest = _activeUser;
+    if (activeGuest is! Gosc) {
+      _message('Rezerwacje moze utworzyc tylko gosc hotelowy');
+      return;
+    }
+
     final result = await showModalBottomSheet<_ReservationDraft>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       builder: (context) {
         return _ReservationSheet(
-          guests: _controller.repozytorium.goscie,
+          guest: activeGuest,
           rooms: _controller.repozytorium.pokoje,
           initialRoom: initialRoom,
           initialStartDate: _startDate,
@@ -1573,14 +1579,14 @@ class _ReservationHeader extends StatelessWidget {
 
 class _ReservationSheet extends StatefulWidget {
   const _ReservationSheet({
-    required this.guests,
+    required this.guest,
     required this.rooms,
     required this.initialStartDate,
     required this.initialEndDate,
     this.initialRoom,
   });
 
-  final List<Gosc> guests;
+  final Gosc guest;
   final List<Pokoj> rooms;
   final Pokoj? initialRoom;
   final DateTime initialStartDate;
@@ -1591,7 +1597,6 @@ class _ReservationSheet extends StatefulWidget {
 }
 
 class _ReservationSheetState extends State<_ReservationSheet> {
-  late Gosc _guest = widget.guests.first;
   late Pokoj _room = widget.initialRoom ?? widget.rooms.first;
   late DateTime _startDate = widget.initialStartDate;
   late DateTime _endDate = widget.initialEndDate;
@@ -1603,26 +1608,7 @@ class _ReservationSheetState extends State<_ReservationSheet> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          DropdownButtonFormField<Gosc>(
-            initialValue: _guest,
-            decoration: const InputDecoration(
-              labelText: 'Gosc',
-              prefixIcon: Icon(Icons.person_rounded),
-            ),
-            items: widget.guests
-                .map(
-                  (guest) => DropdownMenuItem(
-                    value: guest,
-                    child: Text('${guest.imie} ${guest.nazwisko}'),
-                  ),
-                )
-                .toList(),
-            onChanged: (guest) {
-              if (guest != null) {
-                setState(() => _guest = guest);
-              }
-            },
-          ),
+          _SelectedGuestField(guest: widget.guest),
           const SizedBox(height: 12),
           DropdownButtonFormField<Pokoj>(
             initialValue: _room,
@@ -1672,7 +1658,7 @@ class _ReservationSheetState extends State<_ReservationSheet> {
                 Navigator.pop(
                   context,
                   _ReservationDraft(
-                    guest: _guest,
+                    guest: widget.guest,
                     room: _room,
                     startDate: _startDate,
                     endDate: _endDate,
@@ -1683,6 +1669,28 @@ class _ReservationSheetState extends State<_ReservationSheet> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _SelectedGuestField extends StatelessWidget {
+  const _SelectedGuestField({required this.guest});
+
+  final Gosc guest;
+
+  @override
+  Widget build(BuildContext context) {
+    return InputDecorator(
+      decoration: const InputDecoration(
+        labelText: 'Gosc',
+        prefixIcon: Icon(Icons.person_rounded),
+      ),
+      child: Text(
+        '${guest.imie} ${guest.nazwisko}',
+        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }

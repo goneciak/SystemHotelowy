@@ -35,6 +35,26 @@ void main() {
     expect(find.text('Recepcjonista'), findsOneWidget);
   });
 
+  testWidgets('formularz rezerwacji uzywa tylko aktywnego goscia', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const HotelApp());
+
+    await tester.tap(find.text('Konto'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Jan Kowalski').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Maria Nowak').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Pokoje'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Wybierz pokoj').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Maria Nowak'), findsOneWidget);
+    expect(find.text('Jan Kowalski'), findsNothing);
+  });
+
   testWidgets('pokazuje osobna nawigacje recepcjonisty', (tester) async {
     await tester.pumpWidget(const HotelApp());
 
