@@ -10,12 +10,15 @@ class SerwisRezerwacji {
     required this.serwisEmail,
     required List<Pokoj> pokoje,
     List<Gosc>? goscie,
+    DateTime? dzisiejszaData,
   }) : _pokoje = pokoje,
-       _goscie = goscie ?? [];
+       _goscie = goscie ?? [],
+       _dzisiejszaData = dzisiejszaData;
 
   final ISerwisEmail serwisEmail;
   final List<Pokoj> _pokoje;
   final List<Gosc> _goscie;
+  final DateTime? _dzisiejszaData;
   final List<Rezerwacja> _rezerwacje = [];
   int _nastepneIdRezerwacji = 1;
 
@@ -27,6 +30,10 @@ class SerwisRezerwacji {
   }) {
     final pokoj = _znajdzPokoj(idPokoju);
     final gosc = _znajdzGoscia(idGoscia);
+    if (_czyDataWPrzeszlosci(dataPoczatkowa)) {
+      throw StateError('Nie mozna zarezerwowac pokoju w przeszlosci.');
+    }
+
     if (!pokoj.czyDostepny(dataPoczatkowa, dataKoncowa)) {
       throw StateError('Pokoj nie jest dostepny w podanym terminie.');
     }
@@ -74,6 +81,9 @@ class SerwisRezerwacji {
     required DateTime nowaDataKoncowa,
   }) {
     if (!nowaDataKoncowa.isAfter(nowaDataPoczatkowa)) {
+      return false;
+    }
+    if (_czyDataWPrzeszlosci(nowaDataPoczatkowa)) {
       return false;
     }
 
@@ -150,6 +160,19 @@ class SerwisRezerwacji {
     DateTime koniecB,
   ) {
     return poczatekA.isBefore(koniecB) && koniecA.isAfter(poczatekB);
+  }
+
+  bool _czyDataWPrzeszlosci(DateTime data) {
+    final dzisiaj = _dzisiejszaData;
+    if (dzisiaj == null) {
+      return false;
+    }
+
+    return _tylkoData(data).isBefore(_tylkoData(dzisiaj));
+  }
+
+  DateTime _tylkoData(DateTime data) {
+    return DateTime(data.year, data.month, data.day);
   }
 
   Gosc? _znajdzGoscia(int idGoscia) {

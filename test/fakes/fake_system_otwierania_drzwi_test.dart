@@ -8,8 +8,8 @@ void main() {
 
       final kodPin = system.stworzKodPIN(101);
 
-      expect(kodPin, 'PIN-101');
-      expect(system.aktywnePiny[101], 'PIN-101');
+      expect(kodPin, matches(RegExp(r'^\d{4}$')));
+      expect(system.aktywnePiny[101], kodPin);
     });
 
     test('dezaktywuje kod PIN dla numeru pokoju', () {

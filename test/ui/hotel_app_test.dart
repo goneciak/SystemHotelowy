@@ -18,10 +18,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Pokoj 101'), findsOneWidget);
+    expect(find.text('Brak ocen'), findsWidgets);
     expect(find.text('Wybierz pokoj'), findsWidgets);
   });
 
-  testWidgets('pozwala przelaczyc widok goscia i recepcjonisty', (tester) async {
+  testWidgets('pozwala przelaczyc widok goscia i recepcjonisty', (
+    tester,
+  ) async {
     await tester.pumpWidget(const HotelApp());
 
     await tester.tap(find.text('Konto'));
@@ -43,6 +46,7 @@ void main() {
     expect(find.text('Panel recepcji'), findsOneWidget);
     expect(find.text('Rezerwacje'), findsWidgets);
     expect(find.text('Zarzadzanie pokojami'), findsOneWidget);
+    expect(find.text('Opinie pokoi'), findsOneWidget);
   });
 
   testWidgets('widok goscia nie pokazuje panelu recepcji', (tester) async {

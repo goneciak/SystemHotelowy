@@ -105,6 +105,31 @@ void main() {
       );
     });
 
+    test('nie tworzy rezerwacji gdy data poczatkowa jest w przeszlosci', () {
+      final pokoj = Pokoj(
+        idPokoju: 1,
+        nrPokoju: 101,
+        pojemnoscPokoju: 2,
+        cenaZaDobe: 250,
+        statusPokoju: StatusPokoju.dostepny,
+      );
+      final serwis = SerwisRezerwacji(
+        serwisEmail: FakeSerwisEmail(),
+        pokoje: [pokoj],
+        dzisiejszaData: DateTime(2026, 6, 13),
+      );
+
+      expect(
+        () => serwis.stworzRezerwacje(
+          idGoscia: 7,
+          idPokoju: 1,
+          dataPoczatkowa: DateTime(2026, 6, 12),
+          dataKoncowa: DateTime(2026, 6, 14),
+        ),
+        throwsStateError,
+      );
+    });
+
     test('zwraca pokoje dostepne dla liczby gosci i zakresu dat', () {
       final pokojDwuosobowy = Pokoj(
         idPokoju: 1,
@@ -234,36 +259,39 @@ void main() {
       expect(pokoj.statusPokoju, StatusPokoju.dostepny);
     });
 
-    test('modyfikuje daty rezerwacji gdy pokoj jest dostepny w nowym terminie', () {
-      final pokoj = Pokoj(
-        idPokoju: 1,
-        nrPokoju: 101,
-        pojemnoscPokoju: 2,
-        cenaZaDobe: 250,
-        statusPokoju: StatusPokoju.dostepny,
-      );
-      final serwis = SerwisRezerwacji(
-        serwisEmail: FakeSerwisEmail(),
-        pokoje: [pokoj],
-      );
-      final rezerwacja = serwis.stworzRezerwacje(
-        idGoscia: 7,
-        idPokoju: 1,
-        dataPoczatkowa: DateTime(2026, 6, 10),
-        dataKoncowa: DateTime(2026, 6, 12),
-      );
+    test(
+      'modyfikuje daty rezerwacji gdy pokoj jest dostepny w nowym terminie',
+      () {
+        final pokoj = Pokoj(
+          idPokoju: 1,
+          nrPokoju: 101,
+          pojemnoscPokoju: 2,
+          cenaZaDobe: 250,
+          statusPokoju: StatusPokoju.dostepny,
+        );
+        final serwis = SerwisRezerwacji(
+          serwisEmail: FakeSerwisEmail(),
+          pokoje: [pokoj],
+        );
+        final rezerwacja = serwis.stworzRezerwacje(
+          idGoscia: 7,
+          idPokoju: 1,
+          dataPoczatkowa: DateTime(2026, 6, 10),
+          dataKoncowa: DateTime(2026, 6, 12),
+        );
 
-      final wynik = serwis.modyfikujDatyRezerwacji(
-        idRezerwacji: rezerwacja.idRezerwacji,
-        nowaDataPoczatkowa: DateTime(2026, 6, 12),
-        nowaDataKoncowa: DateTime(2026, 6, 14),
-      );
+        final wynik = serwis.modyfikujDatyRezerwacji(
+          idRezerwacji: rezerwacja.idRezerwacji,
+          nowaDataPoczatkowa: DateTime(2026, 6, 12),
+          nowaDataKoncowa: DateTime(2026, 6, 14),
+        );
 
-      expect(wynik, isTrue);
-      expect(rezerwacja.dataPoczatkowa, DateTime(2026, 6, 12));
-      expect(rezerwacja.dataKoncowa, DateTime(2026, 6, 14));
-      expect(rezerwacja.calkowitaCena, 500);
-    });
+        expect(wynik, isTrue);
+        expect(rezerwacja.dataPoczatkowa, DateTime(2026, 6, 12));
+        expect(rezerwacja.dataKoncowa, DateTime(2026, 6, 14));
+        expect(rezerwacja.calkowitaCena, 500);
+      },
+    );
 
     test('nie modyfikuje dat gdy nowy termin koliduje z inna rezerwacja', () {
       final pokoj = Pokoj(
@@ -299,6 +327,37 @@ void main() {
       expect(wynik, isFalse);
       expect(pierwsza.dataPoczatkowa, DateTime(2026, 6, 10));
       expect(pierwsza.dataKoncowa, DateTime(2026, 6, 12));
+    });
+
+    test('nie modyfikuje dat gdy nowy termin zaczyna sie w przeszlosci', () {
+      final pokoj = Pokoj(
+        idPokoju: 1,
+        nrPokoju: 101,
+        pojemnoscPokoju: 2,
+        cenaZaDobe: 250,
+        statusPokoju: StatusPokoju.dostepny,
+      );
+      final serwis = SerwisRezerwacji(
+        serwisEmail: FakeSerwisEmail(),
+        pokoje: [pokoj],
+        dzisiejszaData: DateTime(2026, 6, 13),
+      );
+      final rezerwacja = serwis.stworzRezerwacje(
+        idGoscia: 7,
+        idPokoju: 1,
+        dataPoczatkowa: DateTime(2026, 6, 13),
+        dataKoncowa: DateTime(2026, 6, 15),
+      );
+
+      final wynik = serwis.modyfikujDatyRezerwacji(
+        idRezerwacji: rezerwacja.idRezerwacji,
+        nowaDataPoczatkowa: DateTime(2026, 6, 12),
+        nowaDataKoncowa: DateTime(2026, 6, 14),
+      );
+
+      expect(wynik, isFalse);
+      expect(rezerwacja.dataPoczatkowa, DateTime(2026, 6, 13));
+      expect(rezerwacja.dataKoncowa, DateTime(2026, 6, 15));
     });
 
     test('korzysta z pokoi z lokalnego repozytorium demo', () {

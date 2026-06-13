@@ -4,6 +4,7 @@ import '../../controllers/hotel_controller.dart';
 import '../../enums/status_pokoju.dart';
 import '../../enums/status_rezerwacji.dart';
 import '../../models/gosc.dart';
+import '../../models/ocena_pobytu.dart';
 import '../../models/pokoj.dart';
 import '../../models/recepcjonista.dart';
 import '../../models/rezerwacja.dart';
@@ -19,8 +20,8 @@ class HotelDashboardScreen extends StatefulWidget {
 class _HotelDashboardScreenState extends State<HotelDashboardScreen> {
   late final HotelController _controller;
   int _selectedIndex = 0;
-  DateTime _startDate = DateTime(2026, 6, 10);
-  DateTime _endDate = DateTime(2026, 6, 12);
+  late DateTime _startDate;
+  late DateTime _endDate;
   int _guestCount = 2;
   _AccountRole _role = _AccountRole.gosc;
   late Uzytkownik _activeUser;
@@ -29,6 +30,8 @@ class _HotelDashboardScreenState extends State<HotelDashboardScreen> {
   void initState() {
     super.initState();
     _controller = HotelController.demo();
+    _startDate = _today();
+    _endDate = _startDate.add(const Duration(days: 2));
     _activeUser = _controller.repozytorium.goscie.first;
   }
 
@@ -48,49 +51,49 @@ class _HotelDashboardScreenState extends State<HotelDashboardScreen> {
   List<NavigationDestination> _navigationDestinations() {
     return switch (_role) {
       _AccountRole.gosc => const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home_rounded),
-            label: 'Start',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.king_bed_outlined),
-            selectedIcon: Icon(Icons.king_bed_rounded),
-            label: 'Pokoje',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.luggage_outlined),
-            selectedIcon: Icon(Icons.luggage_rounded),
-            label: 'Pobyt',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.account_circle_outlined),
-            selectedIcon: Icon(Icons.account_circle_rounded),
-            label: 'Konto',
-          ),
-        ],
+        NavigationDestination(
+          icon: Icon(Icons.home_outlined),
+          selectedIcon: Icon(Icons.home_rounded),
+          label: 'Start',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.king_bed_outlined),
+          selectedIcon: Icon(Icons.king_bed_rounded),
+          label: 'Pokoje',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.luggage_outlined),
+          selectedIcon: Icon(Icons.luggage_rounded),
+          label: 'Pobyt',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.account_circle_outlined),
+          selectedIcon: Icon(Icons.account_circle_rounded),
+          label: 'Konto',
+        ),
+      ],
       _AccountRole.recepcjonista => const [
-          NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined),
-            selectedIcon: Icon(Icons.dashboard_rounded),
-            label: 'Panel',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.event_note_outlined),
-            selectedIcon: Icon(Icons.event_note_rounded),
-            label: 'Rezerwacje',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.meeting_room_outlined),
-            selectedIcon: Icon(Icons.meeting_room_rounded),
-            label: 'Pokoje',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.account_circle_outlined),
-            selectedIcon: Icon(Icons.account_circle_rounded),
-            label: 'Konto',
-          ),
-        ],
+        NavigationDestination(
+          icon: Icon(Icons.dashboard_outlined),
+          selectedIcon: Icon(Icons.dashboard_rounded),
+          label: 'Panel',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.event_note_outlined),
+          selectedIcon: Icon(Icons.event_note_rounded),
+          label: 'Rezerwacje',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.meeting_room_outlined),
+          selectedIcon: Icon(Icons.meeting_room_rounded),
+          label: 'Pokoje',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.account_circle_outlined),
+          selectedIcon: Icon(Icons.account_circle_rounded),
+          label: 'Konto',
+        ),
+      ],
     };
   }
 
@@ -188,7 +191,9 @@ class _HotelDashboardScreenState extends State<HotelDashboardScreen> {
   void _setFilters(DateTime startDate, DateTime endDate, int guestCount) {
     setState(() {
       _startDate = startDate;
-      _endDate = endDate;
+      _endDate = endDate.isAfter(startDate)
+          ? endDate
+          : startDate.add(const Duration(days: 1));
       _guestCount = guestCount;
     });
   }
@@ -240,8 +245,9 @@ class _HotelDashboardScreenState extends State<HotelDashboardScreen> {
     }
 
     try {
+      late final Rezerwacja rezerwacja;
       setState(() {
-        _controller.utworzRezerwacje(
+        rezerwacja = _controller.utworzRezerwacje(
           idGoscia: result.guest.idUzytkownika,
           idPokoju: result.room.idPokoju,
           dataPoczatkowa: result.startDate,
@@ -249,18 +255,21 @@ class _HotelDashboardScreenState extends State<HotelDashboardScreen> {
         );
         _selectedIndex = 2;
       });
-      _message('Rezerwacja zostala zapisana');
+      _message('Rezerwacja zostala zapisana. PIN: ${rezerwacja.kodPin}');
     } on StateError catch (error) {
       _message(error.message);
     }
   }
 
   void _payReservation(Rezerwacja reservation) {
+    final wasPaid = reservation.platnosc?.czyPoprawna == true;
     setState(() {
       _controller.wykonajPlatnosc(idRezerwacji: reservation.idRezerwacji);
     });
     _message(
-      reservation.platnosc?.czyPoprawna == true
+      wasPaid
+          ? 'Rezerwacja jest juz oplacona'
+          : reservation.platnosc?.czyPoprawna == true
           ? 'Platnosc przyjeta'
           : 'Platnosc odrzucona',
     );
@@ -420,7 +429,7 @@ class _HomePage extends StatelessWidget {
             )
           else
             SizedBox(
-              height: 268,
+              height: 288,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: availableRooms.take(3).length,
@@ -432,6 +441,8 @@ class _HomePage extends StatelessWidget {
                     child: _RoomOfferCard(
                       room: room,
                       available: true,
+                      unavailableReason: null,
+                      rating: _roomRating(room, reservations),
                       role: _AccountRole.gosc,
                       onReserve: () => onReserve(),
                       onStatusChanged: (_) {},
@@ -472,7 +483,9 @@ class _ReceptionDashboardPage extends StatelessWidget {
     final reservations = controller.rezerwacje;
     final rooms = controller.repozytorium.pokoje;
     final activeReservations = reservations
-        .where((reservation) => reservation.status != StatusRezerwacji.anulowana)
+        .where(
+          (reservation) => reservation.status != StatusRezerwacji.anulowana,
+        )
         .length;
     final cleaningRooms = rooms
         .where((room) => room.statusPokoju == StatusPokoju.czyszczenie)
@@ -525,9 +538,17 @@ class _ReceptionDashboardPage extends StatelessWidget {
           _ReceptionActionCard(
             icon: Icons.meeting_room_rounded,
             title: 'Zarzadzanie pokojami',
-            subtitle: 'Zmieniaj status: dostepny, zajety, czyszczenie, wylaczony.',
+            subtitle:
+                'Zmieniaj status: dostepny, zajety, czyszczenie, wylaczony.',
             buttonLabel: 'Otworz pokoje',
             onPressed: onOpenRooms,
+          ),
+          const SizedBox(height: 20),
+          _SectionTitle(title: 'Opinie pokoi'),
+          const SizedBox(height: 12),
+          _RoomReviewsOverview(
+            rooms: rooms,
+            reservations: reservations,
           ),
         ],
       ),
@@ -559,15 +580,15 @@ class _MetricCard extends StatelessWidget {
             Text(
               value,
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: const Color(0xFF3A2922),
-                  ),
+                fontWeight: FontWeight.w800,
+                color: const Color(0xFF3A2922),
+              ),
             ),
             Text(
               label,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: const Color(0xFF75665B),
-                  ),
+                color: const Color(0xFF75665B),
+              ),
             ),
           ],
         ),
@@ -615,15 +636,15 @@ class _ReceptionActionCard extends StatelessWidget {
                   Text(
                     title,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     subtitle,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: const Color(0xFF75665B),
-                        ),
+                      color: const Color(0xFF75665B),
+                    ),
                   ),
                 ],
               ),
@@ -660,6 +681,92 @@ class _ReceptionRoomSummary extends StatelessWidget {
           color: status == StatusPokoju.dostepny
               ? const Color(0xFF4E7B63)
               : const Color(0xFF8B4C4C),
+        );
+      }).toList(),
+    );
+  }
+}
+
+class _RoomReviewsOverview extends StatelessWidget {
+  const _RoomReviewsOverview({
+    required this.rooms,
+    required this.reservations,
+  });
+
+  final List<Pokoj> rooms;
+  final List<Rezerwacja> reservations;
+
+  @override
+  Widget build(BuildContext context) {
+    final ratedRooms = rooms
+        .map((room) => (room: room, rating: _roomRating(room, reservations)))
+        .where((item) => item.rating.count > 0)
+        .toList();
+
+    if (ratedRooms.isEmpty) {
+      return const _EmptyCard(
+        icon: Icons.star_outline_rounded,
+        title: 'Brak ocen pokoi',
+      );
+    }
+
+    return Column(
+      children: ratedRooms.map((item) {
+        final latestReview = _latestRoomReview(item.room, reservations);
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFECE1D4),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.star_rounded,
+                      color: Color(0xFF5B4033),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Pokoj ${item.room.nrPokoju}',
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
+                                fontWeight: FontWeight.w800,
+                              ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${item.rating.average.toStringAsFixed(1)}/5 z ${item.rating.count} ocen',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                        if (latestReview != null) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            latestReview.komentarz,
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: const Color(0xFF75665B),
+                                ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         );
       }).toList(),
     );
@@ -725,10 +832,17 @@ class _RoomsPage extends StatelessWidget {
             (room) => Padding(
               padding: const EdgeInsets.only(bottom: 14),
               child: SizedBox(
-                height: role == _AccountRole.recepcjonista ? 318 : 258,
+                height: role == _AccountRole.recepcjonista ? 336 : 278,
                 child: _RoomOfferCard(
                   room: room,
                   available: availableRooms.contains(room),
+                  unavailableReason: _roomUnavailableReason(
+                    room: room,
+                    startDate: startDate,
+                    endDate: endDate,
+                    guestCount: guestCount,
+                  ),
+                  rating: _roomRating(room, controller.rezerwacje),
                   role: role,
                   onReserve: () => onReserve(room),
                   onStatusChanged: (status) => onStatusChanged(room, status),
@@ -1018,6 +1132,8 @@ class _RoomOfferCard extends StatelessWidget {
   const _RoomOfferCard({
     required this.room,
     required this.available,
+    required this.unavailableReason,
+    required this.rating,
     required this.role,
     required this.onReserve,
     required this.onStatusChanged,
@@ -1025,6 +1141,8 @@ class _RoomOfferCard extends StatelessWidget {
 
   final Pokoj room;
   final bool available;
+  final String? unavailableReason;
+  final _RoomRating rating;
   final _AccountRole role;
   final VoidCallback onReserve;
   final ValueChanged<StatusPokoju> onStatusChanged;
@@ -1062,7 +1180,8 @@ class _RoomOfferCard extends StatelessWidget {
                   child: _StatusPill(
                     text: available
                         ? 'Dostepny'
-                        : _roomStatusLabel(room.statusPokoju),
+                        : unavailableReason ??
+                              _roomStatusLabel(room.statusPokoju),
                     color: available
                         ? const Color(0xFF4E7B63)
                         : const Color(0xFF8B4C4C),
@@ -1097,6 +1216,12 @@ class _RoomOfferCard extends StatelessWidget {
                       icon: Icons.nights_stay_rounded,
                       text: '${_formatMoney(room.cenaZaDobe)} / noc',
                     ),
+                    _IconText(
+                      icon: Icons.star_rounded,
+                      text: rating.count == 0
+                          ? 'Brak ocen'
+                          : '${rating.average.toStringAsFixed(1)}/5 (${rating.count})',
+                    ),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -1106,7 +1231,11 @@ class _RoomOfferCard extends StatelessWidget {
                     child: FilledButton.icon(
                       onPressed: available ? onReserve : null,
                       icon: const Icon(Icons.calendar_month_rounded),
-                      label: const Text('Wybierz pokoj'),
+                      label: Text(
+                        available
+                            ? 'Wybierz pokoj'
+                            : unavailableReason ?? 'Niedostepny',
+                      ),
                     ),
                   )
                 else
@@ -1280,6 +1409,9 @@ class _ReservationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isPaid = reservation.platnosc?.czyPoprawna == true;
+    final isCheckedOut = reservation.status == StatusRezerwacji.zakonczona;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -1294,9 +1426,13 @@ class _ReservationCard extends StatelessWidget {
               children: [
                 if (role == _AccountRole.gosc) ...[
                   FilledButton.icon(
-                    onPressed: onPay,
-                    icon: const Icon(Icons.credit_card_rounded),
-                    label: const Text('Oplac'),
+                    onPressed: isPaid ? null : onPay,
+                    icon: Icon(
+                      isPaid
+                          ? Icons.verified_rounded
+                          : Icons.credit_card_rounded,
+                    ),
+                    label: Text(isPaid ? 'Oplacono' : 'Oplac'),
                   ),
                   OutlinedButton.icon(
                     onPressed: onCheckIn,
@@ -1304,12 +1440,16 @@ class _ReservationCard extends StatelessWidget {
                     label: const Text('PIN'),
                   ),
                   OutlinedButton.icon(
-                    onPressed: onCheckOut,
-                    icon: const Icon(Icons.logout_rounded),
-                    label: const Text('Wymelduj'),
+                    onPressed: isCheckedOut ? null : onCheckOut,
+                    icon: Icon(
+                      isCheckedOut
+                          ? Icons.verified_rounded
+                          : Icons.logout_rounded,
+                    ),
+                    label: Text(isCheckedOut ? 'Wymeldowano' : 'Wymelduj'),
                   ),
                   OutlinedButton.icon(
-                    onPressed: onReview,
+                    onPressed: isCheckedOut ? onReview : null,
                     icon: const Icon(Icons.star_rounded),
                     label: const Text('Ocena'),
                   ),
@@ -1411,6 +1551,11 @@ class _ReservationHeader extends StatelessWidget {
                         ? 'Oplacona'
                         : 'Odrzucona',
                   ),
+                  if (reservation.kodPin != null)
+                    _IconText(
+                      icon: Icons.pin_rounded,
+                      text: 'PIN ${reservation.kodPin}',
+                    ),
                   if (reservation.ocenaPobytu != null)
                     _IconText(
                       icon: Icons.star_rounded,
@@ -1742,7 +1887,7 @@ class _DateButton extends StatelessWidget {
         final picked = await showDatePicker(
           context: context,
           initialDate: date,
-          firstDate: DateTime(2025),
+          firstDate: _today(),
           lastDate: DateTime(2028),
         );
         if (picked != null) {
@@ -2009,6 +2154,59 @@ String _formatDate(DateTime date) {
   return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
 }
 
+DateTime _today() {
+  final now = DateTime.now();
+  return DateTime(now.year, now.month, now.day);
+}
+
+_RoomRating _roomRating(Pokoj room, List<Rezerwacja> reservations) {
+  final ratings = reservations
+      .where((reservation) {
+        return reservation.pokoje.any((reservedRoom) {
+          return reservedRoom.idPokoju == room.idPokoju;
+        });
+      })
+      .map((reservation) => reservation.ocenaPobytu)
+      .whereType<OcenaPobytu>()
+      .toList();
+
+  if (ratings.isEmpty) {
+    return const _RoomRating(average: 0, count: 0);
+  }
+
+  final sum = ratings.fold<int>(
+    0,
+    (total, rating) => total + rating.liczbaGwiazdek,
+  );
+  return _RoomRating(average: sum / ratings.length, count: ratings.length);
+}
+
+OcenaPobytu? _latestRoomReview(Pokoj room, List<Rezerwacja> reservations) {
+  final ratings =
+      reservations
+          .where((reservation) {
+            return reservation.pokoje.any((reservedRoom) {
+              return reservedRoom.idPokoju == room.idPokoju;
+            });
+          })
+          .map((reservation) => reservation.ocenaPobytu)
+          .whereType<OcenaPobytu>()
+          .toList()
+        ..sort((a, b) => b.dataDodania.compareTo(a.dataDodania));
+
+  return ratings.firstOrNull;
+}
+
+class _RoomRating {
+  const _RoomRating({
+    required this.average,
+    required this.count,
+  });
+
+  final double average;
+  final int count;
+}
+
 String _formatMoney(double value) {
   return '${value.toStringAsFixed(0)} zl';
 }
@@ -2020,6 +2218,28 @@ String _roomStatusLabel(StatusPokoju status) {
     StatusPokoju.czyszczenie => 'Czyszczenie',
     StatusPokoju.wylaczony => 'Wylaczony',
   };
+}
+
+String? _roomUnavailableReason({
+  required Pokoj room,
+  required DateTime startDate,
+  required DateTime endDate,
+  required int guestCount,
+}) {
+  if (room.pojemnoscPokoju < guestCount) {
+    return 'Do ${room.pojemnoscPokoju} os.';
+  }
+
+  if (room.statusPokoju == StatusPokoju.czyszczenie ||
+      room.statusPokoju == StatusPokoju.wylaczony) {
+    return _roomStatusLabel(room.statusPokoju);
+  }
+
+  if (!room.czyDostepny(startDate, endDate)) {
+    return 'Zajety termin';
+  }
+
+  return null;
 }
 
 String _reservationStatusLabel(StatusRezerwacji status) {

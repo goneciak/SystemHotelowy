@@ -15,6 +15,7 @@ class Rezerwacja {
     List<Pokoj>? pokoje,
     this.platnosc,
     this.ocenaPobytu,
+    this.kodPin,
   }) : pokoje = pokoje ?? [];
 
   final int idRezerwacji;
@@ -26,6 +27,7 @@ class Rezerwacja {
   final List<Pokoj> pokoje;
   Platnosc? platnosc;
   OcenaPobytu? ocenaPobytu;
+  String? kodPin;
 
   void potwierdzRezerwacje() {
     status = StatusRezerwacji.potwierdzona;

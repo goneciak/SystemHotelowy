@@ -22,16 +22,23 @@ class SerwisZameldowania {
 
     dane.rezerwacja.potwierdzRezerwacje();
     dane.pokoj.zmienStatus(StatusPokoju.zajety);
-    return systemOtwieraniaDrzwi.stworzKodPIN(dane.pokoj.nrPokoju);
+    final kodPin = dane.rezerwacja.kodPin;
+    if (kodPin == null) {
+      throw StateError('Rezerwacja nie ma przypisanego kodu PIN.');
+    }
+
+    return kodPin;
   }
 
   bool przetworzWymeldowanie({required int idRezerwacji}) {
     final dane = _znajdzRezerwacjeZPokojem(idRezerwacji);
-    if (dane.rezerwacja.status == StatusRezerwacji.anulowana) {
+    if (dane.rezerwacja.status == StatusRezerwacji.anulowana ||
+        dane.rezerwacja.status == StatusRezerwacji.zakonczona) {
       return false;
     }
 
     systemOtwieraniaDrzwi.dezaktywujKodPIN(dane.pokoj.nrPokoju);
+    dane.rezerwacja.status = StatusRezerwacji.zakonczona;
     dane.pokoj.zmienStatus(StatusPokoju.czyszczenie);
     return true;
   }

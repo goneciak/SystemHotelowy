@@ -1,5 +1,6 @@
 import '../enums/status_pokoju.dart';
 import '../data/lokalne_repozytorium_hotelu.dart';
+import '../enums/status_rezerwacji.dart';
 import '../fakes/fake_serwis_email.dart';
 import '../fakes/fake_system_otwierania_drzwi.dart';
 import '../fakes/fake_system_platnosci.dart';
@@ -17,12 +18,17 @@ class HotelController {
     required this.serwisZameldowania,
     required this.serwisEmail,
     required this.systemPlatnosci,
+    required this.systemOtwieraniaDrzwi,
   });
 
-  factory HotelController.demo({bool czyPlatnoscPoprawna = true}) {
+  factory HotelController.demo({
+    bool czyPlatnoscPoprawna = true,
+    DateTime? dzisiejszaData,
+  }) {
     final repozytorium = LokalneRepozytoriumHotelu.demo();
     final serwisEmail = FakeSerwisEmail();
     final systemOtwieraniaDrzwi = FakeSystemOtwieraniaDrzwi();
+    final dataWalidacji = dzisiejszaData ?? DateTime.now();
 
     return HotelController(
       repozytorium: repozytorium,
@@ -30,6 +36,7 @@ class HotelController {
         serwisEmail: serwisEmail,
         pokoje: repozytorium.pokoje,
         goscie: repozytorium.goscie,
+        dzisiejszaData: dataWalidacji,
       ),
       serwisZameldowania: SerwisZameldowania(
         systemOtwieraniaDrzwi: systemOtwieraniaDrzwi,
@@ -39,6 +46,7 @@ class HotelController {
       systemPlatnosci: FakeSystemPlatnosci(
         czyPlatnoscPoprawna: czyPlatnoscPoprawna,
       ),
+      systemOtwieraniaDrzwi: systemOtwieraniaDrzwi,
     );
   }
 
@@ -47,6 +55,7 @@ class HotelController {
   final SerwisZameldowania serwisZameldowania;
   final FakeSerwisEmail serwisEmail;
   final FakeSystemPlatnosci systemPlatnosci;
+  final FakeSystemOtwieraniaDrzwi systemOtwieraniaDrzwi;
   int _nastepneIdPlatnosci = 1;
   int _nastepneIdOceny = 1;
 
@@ -68,6 +77,9 @@ class HotelController {
     );
 
     repozytorium.rezerwacje.add(rezerwacja);
+    rezerwacja.kodPin = systemOtwieraniaDrzwi.stworzKodPIN(
+      rezerwacja.pokoje.single.nrPokoju,
+    );
     return rezerwacja;
   }
 
@@ -126,6 +138,11 @@ class HotelController {
 
   Platnosc wykonajPlatnosc({required int idRezerwacji}) {
     final rezerwacja = _znajdzRezerwacje(idRezerwacji);
+    final isAlreadyPaid = rezerwacja.platnosc?.czyPoprawna == true;
+    if (isAlreadyPaid) {
+      return rezerwacja.platnosc!;
+    }
+
     final platnosc = Platnosc(
       idPlatnosci: _nastepneIdPlatnosci++,
       naleznoscDoZaplaty: rezerwacja.calkowitaCena,
@@ -144,6 +161,10 @@ class HotelController {
     required DateTime dataDodania,
   }) {
     final rezerwacja = _znajdzRezerwacje(idRezerwacji);
+    if (rezerwacja.status != StatusRezerwacji.zakonczona) {
+      return false;
+    }
+
     final ocena = OcenaPobytu(
       idOceny: _nastepneIdOceny++,
       liczbaGwiazdek: liczbaGwiazdek,

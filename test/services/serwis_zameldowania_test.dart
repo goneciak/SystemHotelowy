@@ -16,6 +16,7 @@ void main() {
         dataKoncowa: DateTime(2026, 6, 13),
         calkowitaCena: 750,
         status: StatusRezerwacji.potwierdzona,
+        kodPin: '1234',
       );
       final pokoj = Pokoj(
         idPokoju: 1,
@@ -34,10 +35,10 @@ void main() {
         idRezerwacji: rezerwacja.idRezerwacji,
       );
 
-      expect(kodPin, 'PIN-101');
+      expect(kodPin, '1234');
       expect(rezerwacja.status, StatusRezerwacji.potwierdzona);
       expect(pokoj.statusPokoju, StatusPokoju.zajety);
-      expect(systemDrzwi.aktywnePiny[101], 'PIN-101');
+      expect(systemDrzwi.aktywnePiny[101], isNull);
     });
 
     test('nie pozwala zameldowac anulowanej rezerwacji', () {
@@ -47,6 +48,7 @@ void main() {
         dataKoncowa: DateTime(2026, 6, 13),
         calkowitaCena: 750,
         status: StatusRezerwacji.anulowana,
+        kodPin: '1234',
       );
       final pokoj = Pokoj(
         idPokoju: 1,
@@ -77,6 +79,7 @@ void main() {
         dataKoncowa: DateTime(2026, 6, 13),
         calkowitaCena: 750,
         status: StatusRezerwacji.potwierdzona,
+        kodPin: '1234',
       );
       final pokoj = Pokoj(
         idPokoju: 1,
@@ -97,9 +100,41 @@ void main() {
       );
 
       expect(wynik, isTrue);
-      expect(rezerwacja.status, StatusRezerwacji.potwierdzona);
+      expect(rezerwacja.status, StatusRezerwacji.zakonczona);
       expect(pokoj.statusPokoju, StatusPokoju.czyszczenie);
       expect(systemDrzwi.aktywnePiny.containsKey(101), isFalse);
+    });
+
+    test('nie wymeldowuje drugi raz zakonczonej rezerwacji', () {
+      final systemDrzwi = FakeSystemOtwieraniaDrzwi();
+      final rezerwacja = Rezerwacja(
+        idRezerwacji: 1,
+        dataPoczatkowa: DateTime(2026, 6, 10),
+        dataKoncowa: DateTime(2026, 6, 13),
+        calkowitaCena: 750,
+        status: StatusRezerwacji.zakonczona,
+        kodPin: '1234',
+      );
+      final pokoj = Pokoj(
+        idPokoju: 1,
+        nrPokoju: 101,
+        pojemnoscPokoju: 2,
+        cenaZaDobe: 250,
+        statusPokoju: StatusPokoju.czyszczenie,
+        rezerwacje: [rezerwacja],
+      );
+      final serwis = SerwisZameldowania(
+        systemOtwieraniaDrzwi: systemDrzwi,
+        pokoje: [pokoj],
+      );
+
+      final wynik = serwis.przetworzWymeldowanie(
+        idRezerwacji: rezerwacja.idRezerwacji,
+      );
+
+      expect(wynik, isFalse);
+      expect(rezerwacja.status, StatusRezerwacji.zakonczona);
+      expect(pokoj.statusPokoju, StatusPokoju.czyszczenie);
     });
 
     test('nie wymeldowuje anulowanej rezerwacji', () {
@@ -110,6 +145,7 @@ void main() {
         dataKoncowa: DateTime(2026, 6, 13),
         calkowitaCena: 750,
         status: StatusRezerwacji.anulowana,
+        kodPin: '1234',
       );
       final pokoj = Pokoj(
         idPokoju: 1,
@@ -132,7 +168,7 @@ void main() {
       expect(wynik, isFalse);
       expect(rezerwacja.status, StatusRezerwacji.anulowana);
       expect(pokoj.statusPokoju, StatusPokoju.zajety);
-      expect(systemDrzwi.aktywnePiny[101], 'PIN-101');
+      expect(systemDrzwi.aktywnePiny[101], isNotNull);
     });
   });
 }
